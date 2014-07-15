@@ -1,3 +1,5 @@
+var iteratorFactory = require('../../lib/iterators');
+// module.exports = iteratorFactory(_types);
 module.exports = iterator;
 
 var estraverse = require("estraverse")
@@ -6,15 +8,14 @@ var estraverse = require("estraverse")
         getid: require('./getid')
     }
 ,   h = require("../../lib/helpers")
-;    
-
-function iterator(c) { // TODO refactor to extract this function from the defeinition of _types, and then dynamically generate iterator modules.
+;
+function iterator(c) {
     function handlerFactory(type) {
-        return function handler(n, p) {
-            if (!n.type)
-                throw errors.missingType(n);
-            if (!!_types[n.type] && _types[n.type][type])
-                return _types[n.type][type](n, p, c);
+        return function handler(node, previousNode) {
+            if (!node.type)
+                throw errors.missingType(node);
+            if (!!_types[node.type] && _types[node.type][type])
+                return _types[node.type][type](c, node, previousNode);
         };
     }
 
@@ -22,15 +23,15 @@ function iterator(c) { // TODO refactor to extract this function from the defein
         enter: handlerFactory('enter'),
         leave: handlerFactory('leave')
     };
-};
+}
 
 var _types = {};
 
 _types.Program = {
-    enter: function (n, p, c) {
+    enter: function (c, n, p) {
         c.enterScope('Program'); // TODO change program for the name of the file, or another more specific name
     },
-    leave: function (n, p, c) {
+    leave: function (c, n, p) {
         c.leaveScope();
     }
 };
@@ -38,13 +39,13 @@ _types.Program = {
 //   functionDeclaration(name, args, body, isGenerator, isExpression[, loc])
 //   functionExpression(name, args, body, isGenerator, isExpression[, loc])
 _types.FunctionDeclaration = {
-    enter: function (n, p, c) {
+    enter: function (c, n, p) {
         c.enterScope(n.id.name);
         n.params.forEach(function (param) {
             c.registerVar(param);
         });
     },
-    leave: function (n, p, c) {
+    leave: function (c, n, p) {
         c.leaveScope();
     }
 };
@@ -53,16 +54,16 @@ _types.FunctionExpression = _types.FunctionDeclaration;
 
 //   variableDeclarator(patt, init[, loc])
 _types.VariableDeclarator = {
-    enter: function (n, p, c) {
+    enter: function (c, n, p) {
         c.registerVar(n);
     },
-    leave: function (n, p, c) {
+    leave: function (c, n, p) {
     }
 };
 
 //   callExpression(callee, args[, loc])
 _types.CallExpression = {
-    enter: function (n, p, c) {
+    enter: function (c, n, p) {
         // TODO this is bad design
         var _c = {id: ''};
 
@@ -114,7 +115,7 @@ _types.CallExpression = {
         // }
 
     },
-    leave: function (n, p, c) {
+    leave: function (c, n, p) {
         if (n.salt) {
             c.getFutures(n.salt).forEach(function(flx) {
                 if (flx.kind === 'start') {
@@ -139,7 +140,7 @@ _types.CallExpression = {
 };
 
 _types.AssignmentExpression = {
-    enter: function (n, p, c) {
+    enter: function (c, n, p) {
 
         // TODO
         /*
@@ -212,7 +213,7 @@ _types.AssignmentExpression = {
         // console.log('££ ', _c.id);
 
     },
-    leave: function (n, p, c) {
+    leave: function (c, n, p) {
         // console.log('leave =');
     }
 };
@@ -220,7 +221,7 @@ _types.AssignmentExpression = {
 
 //   identifier(name[, loc])
 _types.Identifier = {
-    enter: function (n, p, c) {
+    enter: function (c, n, p) {
 
         // console.log(n.name);
 
@@ -246,6 +247,6 @@ _types.Identifier = {
             n.modifier = c.currentFlx.modifiers[n.name];
         }
     },
-    leave: function (n, p, c) {
+    leave: function (c, n, p) {
     }
 };
